@@ -1,0 +1,53 @@
+name: Fetch and Send Memes
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Triggers every 6 hours automatically
+  workflow_dispatch: # Allows you to manually trigger it for testing
+
+jobs:
+  post-memes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch and Post Meme
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python -c "
+          import requests
+          import random
+
+          subreddits = ['gamedevmemes', 'gamingmemes', 'programmerhumor']
+          sub = random.choice(subreddits)
+          
+          url = f'https://reddit.com{sub}/hot.json?limit=25'
+          headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+          res = requests.get(url, headers=headers).json()
+          
+          posts = res['data']['children']
+          images = [p['data'] for p in posts if 'post_hint' in p['data'] and p['data']['post_hint'] == 'image']
+          
+          if images:
+              meme = random.choice(images)
+              title = meme['title']
+              img_url = meme['url']
+              
+              payload = {
+                  'embeds': [{
+                      'title': title,
+                      'image': {'url': img_url},
+                      'footer': {'text': f'From r/{sub}'}
+                  }]
+              }
+              requests.post('${{ secrets.DISCORD_WEBHOOK_URL }}', json=payload)
+          "
