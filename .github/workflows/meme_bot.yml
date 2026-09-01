@@ -1,8 +1,8 @@
 name: Fetch and Send Memes
 on:
   schedule:
-    - cron: '0 */6 * * *' # Triggers every 6 hours automatically
-  workflow_dispatch: # Allows manual trigger
+    - cron: '0 */6 * * *' # Automatically drops a meme every 6 hours
+  workflow_dispatch: # Allows you to manually trigger it for testing
 
 jobs:
   post-memes:
@@ -31,27 +31,42 @@ jobs:
 
           webhook = os.environ.get('DISCORD_WEBHOOK_URL')
           if not webhook:
-              print('Error: DISCORD_WEBHOOK_URL is missing from GitHub Secrets!')
+              print('CRITICAL ERROR: Discord Webhook URL is completely blank or missing from Secrets!')
               sys.exit(1)
 
-          subreddits = ['gamedevmemes', 'gamingmemes', 'programmerhumor']
-          sub = random.choice(subreddits)
+          # Target subreddits using standard hot feeds
+          subs = ['gamedevmemes', 'gamingmemes', 'programmerhumor']
+          chosen_sub = random.choice(subs)
           
-          url = 'https://meme-api.com/gimme/' + sub
-          res = requests.get(url)
+          url = f'https://www.reddit.com/r/{chosen_sub}/hot.json?limit=30'
+          headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MemeBot/1.0'}
           
-          if res.status_code == 200:
-              data = res.json()
+          try:
+              res = requests.get(url, headers=headers).json()
+              posts = res['data']['children']
+          except Exception as e:
+              print('Failed to reach server:', e)
+              sys.exit(1)
+          
+          valid_links = []
+          for post in posts:
+              data = post['data']
+              img_url = data.get('url', '')
+              if img_url.endswith(('.jpg', '.jpeg', '.png', '.gif')) and not data.get('stickied'):
+                  valid_links.append((data.get('title', 'Meme!'), img_url))
+          
+          if valid_links:
+              title, meme_img = random.choice(valid_links)
               payload = {
                   'embeds': [{
-                      'title': data.get('title', 'Meme Time!'),
-                      'image': {'url': data.get('url')},
-                      'footer': {'text': 'From r/' + data.get('subreddit', sub)}
+                      'title': title,
+                      'image': {'url': meme_img},
+                      'footer': {'text': f'Fetched from r/{chosen_sub}'}
                   }]
               }
               requests.post(webhook, json=payload)
-              print('Meme sent successfully!')
+              print('Meme dispatched successfully to Discord!')
           else:
-              print('API failed with status code:', res.status_code)
+              print('No raw image posts found on the front page this time.')
               sys.exit(1)
           "
