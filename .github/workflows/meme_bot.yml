@@ -35,7 +35,7 @@ jobs:
               sys.exit(1)
 
           # Target subreddits using standard hot feeds
-          subs = ['gamedevmemes', 'gamingmemes', 'programmerhumor']
+          subs = ['gamingnews']
           chosen_sub = random.choice(subs)
           
           url = f'https://www.reddit.com/r/{chosen_sub}/hot.json?limit=30'
