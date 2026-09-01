@@ -32,7 +32,7 @@ jobs:
           subreddits = ['gamedevmemes', 'gamingmemes', 'programmerhumor']
           sub = random.choice(subreddits)
           
-          url = f'https://meme-api.com{sub}'
+          url = f'https://meme-api.com/{sub}'
           res = requests.get(url)
           
           if res.status_code == 200:
