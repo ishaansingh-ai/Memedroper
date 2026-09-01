@@ -28,40 +28,25 @@ jobs:
           import random
           import sys
 
+          # Using a dedicated meme API that bypasses Reddit blocks
           subreddits = ['gamedevmemes', 'gamingmemes', 'programmerhumor']
           sub = random.choice(subreddits)
           
-          url = f'https://reddit.com{sub}/hot.json?limit=50'
-          headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-          res = requests.get(url, headers=headers).json()
+          url = f'https://meme-api.com{sub}'
+          res = requests.get(url)
           
-          posts = res['data']['children']
-          valid_memes = []
-
-          for p in posts:
-              data = p['data']
-              # Skip stickied posts or text posts
-              if data.get('stickied') or data.get('is_self'):
-                  continue
-              
-              url = data.get('url', '')
-              # Check if the URL links directly to a common image format
-              if url.endswith(('.jpg', '.jpeg', '.png', '.gif')):
-                  valid_memes.append(data)
-
-          if valid_memes:
-              meme = random.choice(valid_memes)
+          if res.status_code == 200:
+              data = res.json()
               payload = {
                   'embeds': [{
-                      'title': meme['title'],
-                      'image': {'url': meme['url']},
-                      'footer': {'text': f'From r/{sub}'}
+                      'title': data.get('title', 'Meme Time!'),
+                      'image': {'url': data.get('url')},
+                      'footer': {'text': f'From r/{data.get(\"subreddit\")}'}
                   }]
               }
               requests.post('${{ secrets.DISCORD_WEBHOOK_URL }}', json=payload)
-              print('Meme sent successfully!')
+              print('Meme sent successfully via Meme-API!')
           else:
-              print('No valid image memes found on this run.')
+              print(f'API failed with status code: {res.status_code}')
               sys.exit(1)
           "
-
