@@ -27,12 +27,17 @@ jobs:
           import requests
           import random
           import sys
+          import os
 
-          # Using a dedicated meme API that bypasses Reddit blocks
+          webhook = os.environ.get('DISCORD_WEBHOOK_URL')
+          if not webhook:
+              print('Error: DISCORD_WEBHOOK_URL is missing from GitHub Secrets!')
+              sys.exit(1)
+
           subreddits = ['gamedevmemes', 'gamingmemes', 'programmerhumor']
           sub = random.choice(subreddits)
           
-          url = f'https://meme-api.com/{sub}'
+          url = 'https://meme-api.com/gimme/' + sub
           res = requests.get(url)
           
           if res.status_code == 200:
@@ -41,12 +46,12 @@ jobs:
                   'embeds': [{
                       'title': data.get('title', 'Meme Time!'),
                       'image': {'url': data.get('url')},
-                      'footer': {'text': f'From r/{data.get(\"subreddit\")}'}
+                      'footer': {'text': 'From r/' + data.get('subreddit', sub)}
                   }]
               }
-              requests.post('${{ secrets.DISCORD_WEBHOOK_URL }}', json=payload)
-              print('Meme sent successfully via Meme-API!')
+              requests.post(webhook, json=payload)
+              print('Meme sent successfully!')
           else:
-              print(f'API failed with status code: {res.status_code}')
+              print('API failed with status code:', res.status_code)
               sys.exit(1)
           "
