@@ -2,7 +2,7 @@ name: Fetch and Send Memes
 on:
   schedule:
     - cron: '0 */6 * * *' # Triggers every 6 hours automatically
-  workflow_dispatch: # Allows you to manually trigger it for testing
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
   post-memes:
@@ -26,28 +26,42 @@ jobs:
           python -c "
           import requests
           import random
+          import sys
 
           subreddits = ['gamedevmemes', 'gamingmemes', 'programmerhumor']
           sub = random.choice(subreddits)
           
-          url = f'https://reddit.com{sub}/hot.json?limit=25'
+          url = f'https://reddit.com{sub}/hot.json?limit=50'
           headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
           res = requests.get(url, headers=headers).json()
           
           posts = res['data']['children']
-          images = [p['data'] for p in posts if 'post_hint' in p['data'] and p['data']['post_hint'] == 'image']
-          
-          if images:
-              meme = random.choice(images)
-              title = meme['title']
-              img_url = meme['url']
+          valid_memes = []
+
+          for p in posts:
+              data = p['data']
+              # Skip stickied posts or text posts
+              if data.get('stickied') or data.get('is_self'):
+                  continue
               
+              url = data.get('url', '')
+              # Check if the URL links directly to a common image format
+              if url.endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                  valid_memes.append(data)
+
+          if valid_memes:
+              meme = random.choice(valid_memes)
               payload = {
                   'embeds': [{
-                      'title': title,
-                      'image': {'url': img_url},
+                      'title': meme['title'],
+                      'image': {'url': meme['url']},
                       'footer': {'text': f'From r/{sub}'}
                   }]
               }
               requests.post('${{ secrets.DISCORD_WEBHOOK_URL }}', json=payload)
+              print('Meme sent successfully!')
+          else:
+              print('No valid image memes found on this run.')
+              sys.exit(1)
           "
+
